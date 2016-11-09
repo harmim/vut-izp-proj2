@@ -3,6 +3,7 @@
  * @author Dominik Harmim <xharmi00@stud.fit.vutbr.cz>
  */
 
+#define _GNU_SOURCE // becouse of asprintf
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -112,7 +113,7 @@ double cfrac_log(double x, unsigned int n)
 
 	x = (x - 1.0) / (x + 1.0);
 	double frac = 1.0, pow2x = x * x;
-	for (; n > 0; n--) {
+	for (n++; n > 0; n--) {
 		frac = 2.0 * n - 1.0 - n * n * pow2x / frac;
 	}
 
