@@ -32,13 +32,13 @@ const char usage_string[] =
  * @param exponent (greater than or equal to 0)
  * @return the base to the exponent power
  */
-double pow_positive(double base, double exponent)
+double pow_unsigned_int_e(double base, unsigned int exponent)
 {
-	if (exponent == 0.0) {
+	if (exponent == 0) {
 		return 1.0;
 	}
 
-	return base * pow_positive(base, exponent - 1.0);
+	return base * pow_unsigned_int_e(base, exponent - 1);
 }
 
 
@@ -51,7 +51,7 @@ double pow_positive(double base, double exponent)
  */
 unsigned long long factorial(unsigned int n)
 {
-	if (n == 1 || n == 0) {
+	if (n <= 1) {
 		return 1;
 	}
 
@@ -80,12 +80,12 @@ double taylor_log(double x, unsigned int n)
 		// algorithm for (0,1>
 		x = 1 - x;
 		for (unsigned int i = 1; i <= n; i++) {
-			result -= pow_positive(x, i) / i;
+			result -= pow_unsigned_int_e(x, i) / i;
 		}
 	} else {
 		// algorithm for (1,INF)
 		for (; n > 0; n--) {
-			result += pow_positive((x - 1.0) / x, n) / n;
+			result += pow_unsigned_int_e((x - 1.0) / x, n) / n;
 		}
 	}
 
@@ -135,7 +135,7 @@ double taylor_pow(double x, double y, unsigned int n)
 {
 	double result = 0.0, log_x = taylor_log(x, n);
 	for (; n > 0; n--) {
-		result += pow_positive(y, n) * pow_positive(log_x, n) / factorial(n);
+		result += pow_unsigned_int_e(y, n) * pow_unsigned_int_e(log_x, n) / factorial(n);
 	}
 
 	return 1.0 + result;
@@ -156,7 +156,7 @@ double taylorcf_pow(double x, double y, unsigned int n)
 {
 	double result = 0.0, log_x = cfrac_log(x, n);
 	for (; n > 0; n--) {
-		result += pow_positive(y, n) * pow_positive(log_x, n) / factorial(n);
+		result += pow_unsigned_int_e(y, n) * pow_unsigned_int_e(log_x, n) / factorial(n);
 	}
 
 	return 1.0 + result;
@@ -214,7 +214,7 @@ double value_of_arg_to_double(const char *value, const char *arg, bool *error)
 
 
 /**
- * converts value of argument in string format to int
+ * converts value of argument in string format to unsigned int
  * if in value there is non-convertible part, or minus sign, print it to stderr
  *
  * @param value value of argument in string format (from argv)
@@ -289,7 +289,7 @@ void print_pow_results(double x, double y, unsigned int n)
 
 
 /**
- * process input arguments and print results to stdout
+ * process input arguments
  *
  * @param argc count of program arguments
  * @param argv program arguments
