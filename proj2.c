@@ -3,7 +3,6 @@
  * @author Dominik Harmim <xharmi00@stud.fit.vutbr.cz>
  */
 
-#define _GNU_SOURCE // becouse of asprintf
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -12,6 +11,7 @@
 
 #define PRINT_ERR(s, ...) fprintf(stderr, s "\n", __VA_ARGS__)
 #define RESULT_PRECISION_FOR_OUTPUT 12
+#define EPS 1e-7
 
 
 /**
@@ -21,145 +21,191 @@ const char usage_string[] =
 	"	proj2 --log X N (calculating the natural logarithm of the number X in\n"
 	"		N iterations)\n"
 	"	proj2 --pow X Y N (calculate exponential function of the number Y with\n"
-	"		the general basis X in N iterations)";
+	"		the basis X in N iterations)";
 
 
 /**
- * calculate the base to the exponent power (only for exponent >= 0)
- * recursive function
- *
- * @param base
- * @param exponent (greater than or equal to 0)
- * @return the base to the exponent power
+ * function prototypes
  */
-double pow_unsigned_int_e(double base, unsigned int exponent)
-{
-	if (exponent == 0) {
-		return 1.0;
-	}
-
-	return base * pow_unsigned_int_e(base, exponent - 1);
-}
+double taylor_log(double x, unsigned int n);
+double cfrac_log(double x, unsigned int n);
+double taylor_pow(double x, double y, unsigned int n);
+double taylorcf_pow(double x, double y, unsigned int n);
+double mylog(double x);
+double mypow(double x, double y);
+float check_spc_argv_of_logarithm(double x);
 
 
 /**
- * calculate factorial of number greater than or equal to zero
- * recursive function
+ * check special value of logarithm argument
  *
- * @param n integer >= 0
- * @return factorial of number `n`
+ * @param x number from which we calculate the logarithm
+ * @return if argument of logaritm is special value, return special result, otherwise -1
  */
-unsigned long long factorial(unsigned int n)
+float check_spc_argv_of_logarithm(double x)
 {
-	if (n <= 1) {
-		return 1;
+	if (fabs(x) == 0.0) {
+		return -INFINITY;
+	} else if (x < 0) {
+		return NAN;
+	} else if (x == 1.0) {
+		return 0.0;
+	} else if (isinf(x)) {
+		return INFINITY;
+	} else if (isnan(x)) {
+		return NAN;
 	}
 
-	return n * factorial(n - 1);
+	return -1;
 }
 
 
 /**
  * calculating the natural logarithm of the number `x` in `n` iterations using Taylor polynomial
  *
- * @param x real number // TODO: <= 0
- * @param n number of members in polynomial // TODO  = 0
+ * @param x number from which we calculate the logarithm
+ * @param n number of members in polynomial > 0
  * @return logarithm of the number x
  */
 double taylor_log(double x, unsigned int n)
 {
-	// TODO: x <= 0
-	if (x == 0.0) {
-		return -INFINITY;
-	} else if (x < 0) {
-		return NAN;
+	double spc_result;
+	if ((spc_result = check_spc_argv_of_logarithm(x)) != -1) {
+		return spc_result;
 	}
 
-	double result = 0.0;
-	if (x <= 1) {
-		// algorithm for (0,1>
-		x = 1 - x;
-		for (unsigned int i = 1; i <= n; i++) {
-			result -= pow_unsigned_int_e(x, i) / i;
+	double sum = 0.0, numerator = 1.0, frac;
+	unsigned int i;
+
+	if (x < 1.0) {
+		// algorithm for (0,1)
+		x = 1.0 - x;
+		for (i = 1; i <= n; i++) {
+			numerator *= x;
+			frac = numerator / i;
+			if (isinf(frac)) {
+				break;
+			}
+			sum -= frac;
 		}
 	} else {
-		// algorithm for (1,INF)
-		for (; n > 0; n--) {
-			result += pow_unsigned_int_e((x - 1.0) / x, n) / n;
+		// algorithm for <1,INF)
+		for (i = 1; i <= n; i++) {
+			numerator *= (x - 1.0) / x;
+			frac = numerator / i;
+			if (isinf(frac)) {
+				break;
+			}
+			sum += frac;
 		}
 	}
 
-	return result;
+	return sum;
 }
 
 
 /**
  * calculating the natural logarithm of the number `x` in `n` iterations using continued fractions
  *
- * @param x real number // TODO: <= 0
- * @param n number of steps in continued fraction // TODO: = 0
+ * @param x number from which we calculate the logarithm
+ * @param n number of steps in continued fraction > 0
  * @return logarithm of the number x
  */
 double cfrac_log(double x, unsigned int n)
 {
-	// TODO: x <= 0
-	if (x == 0.0) {
-		return -INFINITY;
-	} else if (x < 0) {
-		return NAN;
-	} else if (x == 1.0) {
-		return  0.0;
+	double spc_result;
+	if ((spc_result = check_spc_argv_of_logarithm(x)) != -1) {
+		return spc_result;
 	}
 
 	x = (x - 1.0) / (x + 1.0);
-	double frac = 1.0, pow2x = x * x;
-	for (n++; n > 0; n--) {
-		frac = 2.0 * n - 1.0 - n * n * pow2x / frac;
+	unsigned int coef = 2 * n - 1, i = n;
+	double sum = coef, pow2x = x * x, frac;
+	while (i > 1) {
+		i--;
+		coef -= 2;
+		frac = i * i * pow2x / sum;
+		if (isinf(frac)) {
+			break;
+		}
+		sum = coef - frac;
 	}
 
-	return 2.0 * x / frac;
+	return 2.0 * x / sum;
 }
 
 
 /**
- * calculate exponential function of the number `y` with the general basis `x` in `n` iterations
+ * calculate exponential function of the number `y` with the basis `x` in `n` iterations
  * for the calculation of the natural logarithm uses function taylor_log
  *
  * @see taylor_log
- * @param x base // TODO: <= 0
+ * @param x number from which we calculate the exponencial function
  * @param y exponent
- * @param n number of members in polynomial // TODO: = 0
+ * @param n number of members in polynomial > 0
  * @return the base to the exponent power
  */
 double taylor_pow(double x, double y, unsigned int n)
 {
-	double result = 0.0, log_x = taylor_log(x, n);
-	for (; n > 0; n--) {
-		result += pow_unsigned_int_e(y, n) * pow_unsigned_int_e(log_x, n) / factorial(n);
+	if (x <= 0.0) {
+		return NAN;
 	}
 
-	return 1.0 + result;
+	double log_x = taylor_log(x, n);
+	if (isinf(log_x)) {
+		return log_x;
+	}
+
+	double sum = 1.0, pow_y = 1.0, pow_ln_x = 1.0, denominator = 1.0, frac;
+	for (unsigned int i = 1; i <= n; i++) {
+		pow_y *= y;
+		pow_ln_x *= log_x;
+		denominator *= i;
+		frac = pow_y * pow_ln_x / denominator;
+		if (isinf(frac)) {
+			break;
+		}
+		sum += frac;
+	}
+
+	return sum;
 }
 
 
 /**
- * calculate exponential function of the number `y` with the general basis `x` in `n` iterations
+ * calculate exponential function of the number `y` with the basis `x` in `n` iterations
  * for the calculation of the natural logarithm usees function cfrac_log
  *
  * @see cfrac_log
- * @param x base // TODO: <= 0
+ * @param x number from which we calculate the exponencial function
  * @param y exponent
- * @param n number of members in polynomial // TODO: = 0
+ * @param n number of members in polynomial > 0
  * @return the base to the exponent power
  */
 double taylorcf_pow(double x, double y, unsigned int n)
 {
-	double result = 0.0, log_x = cfrac_log(x, n);
-	for (; n > 0; n--) {
-		result += pow_unsigned_int_e(y, n) * pow_unsigned_int_e(log_x, n) / factorial(n);
+	if (x <= 0.0) {
+		return NAN;
 	}
 
-	return 1.0 + result;
+	double log_x = cfrac_log(x, n);
+	if (isinf(log_x)) {
+		return log_x;
+	}
+
+	double sum = 1.0, pow_y = 1.0, pow_ln_x = 1.0, denominator = 1.0, frac;
+	for (unsigned int i = 1; i <= n; i++) {
+		pow_y *= y;
+		pow_ln_x *= log_x;
+		denominator *= i;
+		frac = pow_y * pow_ln_x / denominator;
+		if (isinf(frac)) {
+			break;
+		}
+		sum += frac;
+	}
+
+	return sum;
 }
 
 
@@ -220,7 +266,7 @@ double value_of_arg_to_double(const char *value, const char *arg, bool *error)
  * @param value value of argument in string format (from argv)
  * @param arg name of argument that value belongs to
  * @param error set to true if in value there is non-convertible part or minus sign
- * @return converted int value
+ * @return converted unsigned int value
  */
 unsigned int value_of_arg_to_unsigned_int(const char *value, const char *arg, bool *error)
 {
@@ -242,49 +288,31 @@ unsigned int value_of_arg_to_unsigned_int(const char *value, const char *arg, bo
 
 
 /**
- * prints results of logarithm functions to stdout
+ * print results of logarithm functions to stdout
  *
- * for params @see taylor_log and cfrac_log
+ * @param x number from which we calculate the logarithm
+ * @param n number of iterations for calculation
  */
 void print_log_results(double x, unsigned int n)
 {
-	char *formated_x, *formated_ls;
-	asprintf(&formated_x, "%g", x);
-	const short min_number_of_chars_ls = 12 + strlen(formated_x);
-
-	//log
-	asprintf(&formated_ls, "log(%s)", formated_x);
-	printf("%*s = %.*g\n", min_number_of_chars_ls, formated_ls, RESULT_PRECISION_FOR_OUTPUT, log(x));
-	//crac_log
-	asprintf(&formated_ls, "cfrac_log(%s)", formated_x);
-	printf("%*s = %.*g\n", min_number_of_chars_ls, formated_ls, RESULT_PRECISION_FOR_OUTPUT, cfrac_log(x, n));
-	//taylor_log
-	asprintf(&formated_ls, "taylor_log(%s)", formated_x);
-	printf("%*s = %.*g\n", min_number_of_chars_ls, formated_ls, RESULT_PRECISION_FOR_OUTPUT, taylor_log(x, n));
+	printf("       log(%g) = %.*g\n", x, RESULT_PRECISION_FOR_OUTPUT, log(x));
+	printf(" cfrac_log(%g) = %.*g\n", x, RESULT_PRECISION_FOR_OUTPUT, cfrac_log(x, n));
+	printf("taylor_log(%g) = %.*g\n", x, RESULT_PRECISION_FOR_OUTPUT, taylor_log(x, n));
 }
 
 
 /**
- * prints results of exponencial functions to stdout
+ * print results of exponencial functions to stdout
  *
- * for params @see taylor_pow and taylorcf_pow
+ * @param x number from which we calculate expinencial function
+ * @param y basis of exponencial function
+ * @param n number of iterations for calculation
  */
 void print_pow_results(double x, double y, unsigned int n)
 {
-	char *formated_x, *formated_y, *formated_ls;
-	asprintf(&formated_x, "%g", x);
-	asprintf(&formated_y, "%g", y);
-	const short min_number_of_chars_ls = 15 + strlen(formated_x) + strlen(formated_y);
-
-	//pow
-	asprintf(&formated_ls, "pow(%s,%s)", formated_x, formated_y);
-	printf("%*s = %.*g\n", min_number_of_chars_ls, formated_ls, RESULT_PRECISION_FOR_OUTPUT, pow(x, y));
-	//crac_log
-	asprintf(&formated_ls, "taylor_pow(%s,%s)", formated_x, formated_y);
-	printf("%*s = %.*g\n", min_number_of_chars_ls, formated_ls, RESULT_PRECISION_FOR_OUTPUT, taylor_pow(x, y, n));
-	//taylor_log
-	asprintf(&formated_ls, "taylorcf_pow(%s,%s)", formated_x, formated_y);
-	printf("%*s = %.*g\n", min_number_of_chars_ls, formated_ls, RESULT_PRECISION_FOR_OUTPUT, taylorcf_pow(x, y, n));
+	printf("         pow(%g,%g) = %.*g\n", x, y, RESULT_PRECISION_FOR_OUTPUT, pow(x, y));
+	printf("  taylor_pow(%g,%g) = %.*g\n", x, y, RESULT_PRECISION_FOR_OUTPUT, taylor_pow(x, y, n));
+	printf("taylorcf_pow(%g,%g) = %.*g\n", x, y, RESULT_PRECISION_FOR_OUTPUT, taylorcf_pow(x, y, n));
 }
 
 
@@ -313,12 +341,10 @@ bool process_input_args(const int argc, const char *argv[], bool *help)
 			if (error) {
 				return false;
 			}
-			// TODO: x <= 0
 			unsigned int n = value_of_arg_to_unsigned_int(argv[3], "--log N", &error);
 			if (error) {
 				return false;
 			}
-			// TODO: n = 0
 			if (n == 0) {
 				PRINT_ERR("Value of argument --log N must be greater than 0, given %i.", n);
 				return false;
@@ -343,7 +369,6 @@ bool process_input_args(const int argc, const char *argv[], bool *help)
 			if (error) {
 				return false;
 			}
-			// TODO: x <= 0
 			double y = value_of_arg_to_double(argv[3], "--pow Y", &error);
 			if (error) {
 				return false;
@@ -352,9 +377,8 @@ bool process_input_args(const int argc, const char *argv[], bool *help)
 			if (error) {
 				return false;
 			}
-			// TODO: n = 0
 			if (n == 0) {
-				PRINT_ERR("Value of argument --log N must be greater than 0, given %i.", n);
+				PRINT_ERR("Value of argument --pow N must be greater than 0, given %i.", n);
 				return false;
 			}
 
