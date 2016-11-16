@@ -1,4 +1,4 @@
-CLFAGS=-std=c99 -Wall -Werror -Wextra -lm
+CLFAGS=-std=c99 -Wall -Werror -Wextra -lm -DDEBUG
 CC=gcc
 PROJ=proj2
 TEST=tests.sh

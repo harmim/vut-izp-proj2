@@ -11,7 +11,7 @@
 
 #define PRINT_ERR(s, ...) fprintf(stderr, s "\n", __VA_ARGS__)
 #define RESULT_PRECISION_FOR_OUTPUT 12
-#define EPS 1e-7
+#define EPS 1e-8
 
 
 /**
@@ -210,30 +210,91 @@ double taylorcf_pow(double x, double y, unsigned int n)
 
 
 /**
- * TODO
+ * calculating the natural logarithm of the number `x`
+ * elects to accurate calculation type and minimum number of iterations for required accuracy EPS
  *
- * @param x
- * @return
+ * @param x number from which we calculate the logarithm
+ * @return logarithm of the number x
  */
 double mylog(double x)
 {
-	(void) x;
-	return 0.0;
+	double spc_result;
+	if ((spc_result = check_spc_argv_of_logarithm(x)) != -1) {
+		return spc_result;
+	}
+
+	double taylor_result = 0.0, taylor_prev_result, taylor_numerator = 1.0, taylor_frac;
+	double cfrac_result = 0.0, cfrac_prev_result;
+	unsigned int n = 1;
+
+	do {
+		// Taylor
+		taylor_prev_result = taylor_result;
+
+		if (x < 1.0) {
+			// algorithm for (0,1)
+			taylor_numerator *= 1.0 - x;
+			taylor_frac = taylor_numerator / n;
+			if (isinf(taylor_frac)) {
+				break;
+			}
+			taylor_result -= taylor_frac;
+		} else {
+			// algorithm for <1,INF)
+			taylor_numerator *= (x - 1.0) / x;
+			taylor_frac = taylor_numerator / n;
+			if (isinf(taylor_frac)) {
+				break;
+			}
+			taylor_result += taylor_frac;
+		}
+
+		// Cfrac
+		cfrac_prev_result = cfrac_result;
+		cfrac_result = cfrac_log(x, n);
+
+		n++;
+	} while (fabs(taylor_result - taylor_prev_result) > EPS && fabs(cfrac_result - cfrac_prev_result) > EPS);
+
+	return fabs(taylor_result - taylor_prev_result) <= EPS ? taylor_result : cfrac_result;
 }
 
 
 /**
- * TODO
+ * calculate exponential function of the number `y` with the basis `x`
+ * elects to accurate calculation type and minimum number of iterations for required accuracy EPS
  *
- * @param x
- * @param y
- * @return
+ * @param x number from which we calculate the exponencial function
+ * @param y exponent
+ * @return the base to the exponent power
  */
 double mypow(double x, double y)
 {
-	(void) x;
-	(void) y;
-	return 0.0;
+	if (x <= 0.0) {
+		return NAN;
+	}
+
+	double log_x = mylog(x);
+	if (isinf(log_x)) {
+		return log_x;
+	}
+
+	double sum = 1.0, pow_y = 1.0, pow_ln_x = 1.0, denominator = 1.0, frac = 0.0, prev_frac;
+	unsigned int i = 1;
+	do {
+		prev_frac = frac;
+		pow_y *= y;
+		pow_ln_x *= log_x;
+		denominator *= i;
+		frac = pow_y * pow_ln_x / denominator;
+		if (isinf(frac)) {
+			break;
+		}
+		sum += frac;
+		i++;
+	} while (fabs(frac - prev_frac) > EPS);
+
+	return sum;
 }
 
 
@@ -298,6 +359,10 @@ void print_log_results(double x, unsigned int n)
 	printf("       log(%g) = %.*g\n", x, RESULT_PRECISION_FOR_OUTPUT, log(x));
 	printf(" cfrac_log(%g) = %.*g\n", x, RESULT_PRECISION_FOR_OUTPUT, cfrac_log(x, n));
 	printf("taylor_log(%g) = %.*g\n", x, RESULT_PRECISION_FOR_OUTPUT, taylor_log(x, n));
+#ifdef DEBUG
+	printf("       log(%g) = %.7e\n", x, log(x));
+	printf("     mylog(%g) = %.7e\n", x, mylog(x));
+#endif
 }
 
 
@@ -313,6 +378,10 @@ void print_pow_results(double x, double y, unsigned int n)
 	printf("         pow(%g,%g) = %.*g\n", x, y, RESULT_PRECISION_FOR_OUTPUT, pow(x, y));
 	printf("  taylor_pow(%g,%g) = %.*g\n", x, y, RESULT_PRECISION_FOR_OUTPUT, taylor_pow(x, y, n));
 	printf("taylorcf_pow(%g,%g) = %.*g\n", x, y, RESULT_PRECISION_FOR_OUTPUT, taylorcf_pow(x, y, n));
+#ifdef DEBUG
+	printf("         pow(%g,%g) = %.7e\n", x, y, pow(x, y));
+	printf("       mypow(%g,%g) = %.7e\n", x, y, mypow(x, y));
+#endif
 }
 
 
