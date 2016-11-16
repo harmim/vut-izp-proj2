@@ -369,8 +369,8 @@ void print_log_results(double x, unsigned int n)
 /**
  * print results of exponencial functions to stdout
  *
- * @param x number from which we calculate expinencial function
- * @param y basis of exponencial function
+ * @param x basis of exponencial function
+ * @param y exponent
  * @param n number of iterations for calculation
  */
 void print_pow_results(double x, double y, unsigned int n)
