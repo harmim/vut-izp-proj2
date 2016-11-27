@@ -34,6 +34,7 @@
 
 # Clion
 /.idea/
+/cmake-build-debug/
 
 /proj2
 /tests/output.txt
