@@ -33,7 +33,8 @@ double taylor_pow(double x, double y, unsigned int n);
 double taylorcf_pow(double x, double y, unsigned int n);
 double mylog(double x);
 double mypow(double x, double y);
-float check_spc_argv_of_logarithm(double x);
+float check_spc_argv_of_log(double x);
+float check_spc_argvs_of_pow(double x, double y);
 
 
 /**
@@ -42,7 +43,7 @@ float check_spc_argv_of_logarithm(double x);
  * @param x number from which we calculate the logarithm
  * @return if argument of logaritm is special value, return special result, otherwise -1
  */
-float check_spc_argv_of_logarithm(double x)
+float check_spc_argv_of_log(double x)
 {
 	if (fabs(x) == 0.0) {
 		return -INFINITY;
@@ -61,6 +62,44 @@ float check_spc_argv_of_logarithm(double x)
 
 
 /**
+ * check special values of exponencial function arguments
+ *
+ * @param x number from which we calculate the exponencial function
+ * @param y exponent
+ * @return if arguments of exponencial function are special values, return special result, otherwise -1
+ */
+float check_spc_argvs_of_pow(double x, double y)
+{
+	if (x <= 0.0) {
+		return NAN;
+	} else if (x == 1.0) {
+		return 1.0;
+	} else if (fabs(y) == 0.0) {
+		return 1.0;
+	} else if (isnan(x) || isnan(y)) {
+		return NAN;
+	} else if (y == -INFINITY) {
+		if (fabs(x) < 1.0) {
+			return INFINITY;
+		}
+		return 0.0;
+	} else if (y == INFINITY) {
+		if (fabs(x) < 1.0) {
+			return 0.0;
+		}
+		return INFINITY;
+	} else if (x == INFINITY) {
+		if (y < 0.0) {
+			return 0.0;
+		}
+		return INFINITY;
+	}
+
+	return -1;
+}
+
+
+/**
  * calculating the natural logarithm of the number `x` in `n` iterations using Taylor polynomial
  *
  * @param x number from which we calculate the logarithm
@@ -70,7 +109,7 @@ float check_spc_argv_of_logarithm(double x)
 double taylor_log(double x, unsigned int n)
 {
 	double spc_result;
-	if ((spc_result = check_spc_argv_of_logarithm(x)) != -1) {
+	if ((spc_result = check_spc_argv_of_log(x)) != -1) {
 		return spc_result;
 	}
 
@@ -114,7 +153,7 @@ double taylor_log(double x, unsigned int n)
 double cfrac_log(double x, unsigned int n)
 {
 	double spc_result;
-	if ((spc_result = check_spc_argv_of_logarithm(x)) != -1) {
+	if ((spc_result = check_spc_argv_of_log(x)) != -1) {
 		return spc_result;
 	}
 
@@ -147,8 +186,9 @@ double cfrac_log(double x, unsigned int n)
  */
 double taylor_pow(double x, double y, unsigned int n)
 {
-	if (x <= 0.0) {
-		return NAN;
+	double spc_result;
+	if ((spc_result = check_spc_argvs_of_pow(x, y)) != -1) {
+		return spc_result;
 	}
 
 	double log_x = taylor_log(x, n);
@@ -184,8 +224,9 @@ double taylor_pow(double x, double y, unsigned int n)
  */
 double taylorcf_pow(double x, double y, unsigned int n)
 {
-	if (x <= 0.0) {
-		return NAN;
+	double spc_result;
+	if ((spc_result = check_spc_argvs_of_pow(x, y)) != -1) {
+		return spc_result;
 	}
 
 	double log_x = cfrac_log(x, n);
@@ -219,7 +260,7 @@ double taylorcf_pow(double x, double y, unsigned int n)
 double mylog(double x)
 {
 	double spc_result;
-	if ((spc_result = check_spc_argv_of_logarithm(x)) != -1) {
+	if ((spc_result = check_spc_argv_of_log(x)) != -1) {
 		return spc_result;
 	}
 
@@ -270,8 +311,9 @@ double mylog(double x)
  */
 double mypow(double x, double y)
 {
-	if (x <= 0.0) {
-		return NAN;
+	double spc_result;
+	if ((spc_result = check_spc_argvs_of_pow(x, y)) != -1) {
+		return spc_result;
 	}
 
 	double log_x = mylog(x);

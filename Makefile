@@ -1,23 +1,20 @@
-CLFAGS=-std=c99 -Wall -Werror -Wextra -lm -DDEBUG
+CLFAGS=-std=c99 -Wall -Werror -Wextra -lm
 CC=gcc
 PROJ=proj2
-TEST=tests.sh
-TEST_OUTPUT=output.txt
-TEST_PATTERN=pattern.txt
+TEST=test.sh
 
-.PHONY: tests clean
+.PHONY: tests clean debug
 
 $(PROJ): $(PROJ).c
 	$(CC) $(CLFAGS) $(PROJ).c -o $(PROJ)
 
-tests/$(TEST_OUTPUT): tests/$(TEST) tests/$(TEST_PATTERN)
-	rm -f tests/$(TEST_OUTPUT)
-	chmod +x tests/$(TEST)
-	cd tests && ./$(TEST)
+debug: $(PROJ).c
+	$(CC) $(CLFAGS) -DDEBUG $(PROJ).c -o $(PROJ)
 
-tests: $(PROJ) tests/$(TEST_OUTPUT)
-	diff -u tests/$(TEST_OUTPUT) tests/$(TEST_PATTERN)
+tests: $(PROJ) tests/$(TEST)
+	chmod +x tests/$(TEST)
+	./tests/$(TEST) --show
+	./tests/$(TEST) ./$(PROJ)
 
 clean:
 	rm -f $(PROJ)
-	rm -f tests/output.txt
